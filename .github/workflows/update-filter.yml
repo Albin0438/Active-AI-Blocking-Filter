@@ -22,7 +22,7 @@ jobs:
           while read url; do
             [[ "$url" =~ ^#.*$ ]] && continue
             [[ -z "$url" ]] && continue
-            curl -L --silent "$url" >> build/raw.txt
+            curl -L --silent --fail "$url" >> build/raw.txt || echo "Failed: $url"
             echo "" >> build/raw.txt
           done < sources/sources.txt
 
@@ -37,13 +37,13 @@ jobs:
           grep -v '^#' build/raw.txt \
           | sed '/^$/d' \
           | tr '[:upper:]' '[:lower:]' \
-          | grep -E '^[a-z0-9.-]+$' \
+          | grep -E '^[a-z0-9.-]+\.[a-z]{2,}$' \
           | sort -u > build/clean.txt
 
       - name: Apply allowlist
         run: |
-          if [ -f blocklists/allowlist.txt ]; then
-            grep -vxFf blocklists/allowlist.txt build/clean.txt > build/tmp.txt
+          if [ -s blocklists/allowlist.txt ]; then
+            grep -vxFf blocklists/allowlist.txt build/clean.txt > build/tmp.txt || true
             mv build/tmp.txt build/clean.txt
           fi
 
