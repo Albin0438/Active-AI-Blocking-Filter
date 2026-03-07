@@ -1,1 +1,67 @@
+name: Active AI Blocking Filter Update
 
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  update-filter:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create build directory
+        run: mkdir -p build
+
+      - name: Download sources
+        run: |
+          > build/raw.txt
+          while read url; do
+            [[ "$url" =~ ^#.*$ ]] && continue
+            [[ -z "$url" ]] && continue
+            curl -L --silent "$url" >> build/raw.txt
+            echo "" >> build/raw.txt
+          done < sources/sources.txt
+
+      - name: Add research domains
+        run: |
+          if [ -f research/ai-domains.txt ]; then
+            cat research/ai-domains.txt >> build/raw.txt
+          fi
+
+      - name: Clean and normalize
+        run: |
+          grep -v '^#' build/raw.txt \
+          | sed '/^$/d' \
+          | tr '[:upper:]' '[:lower:]' \
+          | grep -E '^[a-z0-9.-]+$' \
+          | sort -u > build/clean.txt
+
+      - name: Apply allowlist override
+        run: |
+          if [ -f blocklists/allowlist.txt ]; then
+            grep -vxFf blocklists/allowlist.txt build/clean.txt > build/tmp.txt
+            mv build/tmp.txt build/clean.txt
+          fi
+
+      - name: Apply denylist override
+        run: |
+          if [ -f blocklists/denylist.txt ]; then
+            cat blocklists/denylist.txt >> build/clean.txt
+          fi
+
+      - name: Finalize filter
+        run: |
+          sort -u build/clean.txt > blocklists/active-ai-filter.txt
+
+      - name: Commit updates
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add blocklists/active-ai-filter.txt
+          git commit -m "Auto update Active AI Blocking Filter" || echo "No changes"
+          git push
