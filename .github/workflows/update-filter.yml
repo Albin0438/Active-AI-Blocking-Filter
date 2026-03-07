@@ -1,4 +1,4 @@
-name: Active AI Blocking Filter Update
+name: Update Active AI Blocking Filter
 
 on:
   schedule:
@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -41,14 +40,14 @@ jobs:
           | grep -E '^[a-z0-9.-]+$' \
           | sort -u > build/clean.txt
 
-      - name: Apply allowlist override
+      - name: Apply allowlist
         run: |
           if [ -f blocklists/allowlist.txt ]; then
             grep -vxFf blocklists/allowlist.txt build/clean.txt > build/tmp.txt
             mv build/tmp.txt build/clean.txt
           fi
 
-      - name: Apply denylist override
+      - name: Apply denylist
         run: |
           if [ -f blocklists/denylist.txt ]; then
             cat blocklists/denylist.txt >> build/clean.txt
@@ -58,10 +57,10 @@ jobs:
         run: |
           sort -u build/clean.txt > blocklists/active-ai-filter.txt
 
-      - name: Commit updates
+      - name: Commit changes
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add blocklists/active-ai-filter.txt
-          git commit -m "Auto update Active AI Blocking Filter" || echo "No changes"
+          git commit -m "Auto update filter" || echo "No changes"
           git push
